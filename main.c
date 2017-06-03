@@ -8,15 +8,13 @@
 #define MS_ROWS 26
 #define MS_COLS 26
 #define MS_NUM_INDICES (MS_ROWS * MS_COLS)
-//#define MS_NUM_MINES ((MS_ROWS + MS_COLS) / 8)
-//#define MS_NUM_MINES 3
-#define MS_NUM_MINES 1
+#define MS_NUM_MINES (MS_NUM_INDICES / 8)
 
 typedef struct {
     int is_mine; /* We could make minesweeper more fun with
                     an enum and different types of items */
     int visible;
-    int proximity; /* How many mines a adjacent? */
+    int proximity; /* How many mines are adjacent? */
 } ms_space_t;
 
 typedef enum {
@@ -41,11 +39,11 @@ static ms_space_t ms_board[MS_ROWS][MS_COLS];
 static ms_relpos_def_t ms_relpos_defs[] = {
     { MS_TOPLEFT,  -1, -1, },
     { MS_TOP,      -1,  0, },
-    { MS_TOPRIGHT,  1, -1, },
-    { MS_RIGHT,     1,  0, },
+    { MS_TOPRIGHT, -1,  1, },
+    { MS_RIGHT,     0,  1, },
     { MS_BOTRIGHT,  1,  1, },
-    { MS_BOT,       0,  1, },
-    { MS_BOTLEFT,  -1,  1, },
+    { MS_BOT,       1,  0, },
+    { MS_BOTLEFT,   1, -1, },
     { MS_LEFT,      0, -1, },
 };
 
@@ -78,12 +76,6 @@ static int ms_relrowcol2idx(int row, int col, ms_relpos_t relpos)
     return ms_rowcol2idx(row + rpd->relrow, col + rpd->relcol);
 }
 
-/*
-static int ms_relidx2idx(int idx, ms_relpos_t relpos)
-{
-    return ms_relrowcol2idx(ms_idx2row(idx), ms_idx2col(idx), relpos);
-}*/
-
 static void ms_populate_board()
 {
     int ridx, row, col;
@@ -113,9 +105,10 @@ static void ms_populate_board()
         /* Increment the adjacency counts */
         for (relpos = 0; relpos < ARRAY_SIZE(ms_relpos_defs); relpos++) {
             int relidx = ms_relrowcol2idx(row, col, relpos);
-            //printf("row:%d col:%d relpos:%d --> relidx:%d\n", row, col, relpos, relidx);
+
             if (relidx < 0) /* Don't go offboard */
                 continue;
+
             ((ms_space_t*)ms_board)[relidx].proximity++;
         }
 
@@ -142,17 +135,28 @@ static void ms_draw_board(int xray)
             space = &ms_board[row][col];
             if (space->visible || xray) {
                 if (!space->is_mine) {
-                    printf("%d", space->proximity);
+                    if (space->proximity) {
+                        printf("%d", space->proximity);
+                    } else {
+                        printf(" ");
+                    }
                 } else {
                     printf("*");
                 }
             } else {
-                printf("?");
+                printf("-");
             }
             printf(" ");
         }
+        printf("%c ", row + 'a');
         printf("\n");
     }
+
+    printf("  ");
+    for (col = 0; col < MS_COLS; col++) {
+        printf("%c ", col + 'A');
+    }
+    printf("\n");
 }
 
 /* Recursively auto selects all spaces surrounding 0s.  */
@@ -272,7 +276,7 @@ int main(int argc, char const *argv[])
 
         /* Check lose condition */
         if (proximity == -3) {
-            printf("Already chosen. Choose again.\n\n");
+            printf("Already cleared. Choose again.\n\n");
             continue;
         }
 
